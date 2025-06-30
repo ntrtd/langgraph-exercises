@@ -6,7 +6,8 @@
         "langgraph",
         "langsmith",
         "openai",
-        "python-dotenv"
+        "python-dotenv",
+        "."
     ],
     "graphs": {
         "airline_assistant": "./src/deployment/graph.py:assistant_graph",
