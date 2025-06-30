@@ -1,11 +1,18 @@
 """Chat simulator for orchestrating conversations between agents."""
 
-from typing import Any, Callable, Dict, List, Union
+from typing import Any, Callable, List, TypedDict, Union
 
 from langchain_core.messages import AnyMessage
 
 from ..agents import AirlineAssistant, RedTeamUser
+from ..simulation_utils import SimulationState
 from ..simulation_utils import create_chat_simulator as _create_chat_simulator
+
+
+class SimulatorInputs(TypedDict):
+    """Input parameters for simulator."""
+    input: str
+    instructions: str
 
 
 class ChatSimulator:
@@ -53,7 +60,7 @@ class ChatSimulator:
             max_turns=self.max_turns,
         )
 
-    def stream(self, inputs: Dict[str, Any]) -> Any:
+    def stream(self, inputs: SimulatorInputs) -> Any:
         """
         Stream the simulation.
 
@@ -65,7 +72,7 @@ class ChatSimulator:
         """
         return self.simulator.stream(inputs)
 
-    def invoke(self, inputs: Dict[str, Any]) -> Dict[str, Any]:
+    def invoke(self, inputs: SimulatorInputs) -> SimulationState:
         """
         Run the simulation.
 

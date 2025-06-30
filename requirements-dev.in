@@ -1,0 +1,11 @@
+# Development dependencies
+# This file is used by pip-tools to generate requirements-dev.txt
+# To update requirements-dev.txt, run: pip-compile requirements-dev.in
+
+-c requirements.txt  # Constrain versions to production requirements
+
+pytest>=7.0
+black>=22.0
+ruff>=0.0.261
+mypy>=1.0
+pip-tools>=7.0

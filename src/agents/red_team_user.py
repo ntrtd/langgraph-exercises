@@ -6,6 +6,8 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables import Runnable
 from langchain_openai import ChatOpenAI
 
+from ..config import get_config
+
 
 class RedTeamUser:
     """Simulated red team user for testing chatbot vulnerabilities."""
@@ -36,10 +38,11 @@ class RedTeamUser:
         Initialize the red team user.
 
         Args:
-            llm: Language model to use (defaults to gpt-3.5-turbo)
+            llm: Language model to use (defaults to config)
             system_prompt: Optional custom system prompt
         """
-        self.llm = llm or ChatOpenAI(model="gpt-3.5-turbo")
+        config = get_config()
+        self.llm = llm or ChatOpenAI(model=config.red_team_model)
         self.system_prompt = system_prompt or self.DEFAULT_SYSTEM_PROMPT
 
         # Create the prompt template

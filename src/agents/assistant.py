@@ -3,9 +3,10 @@
 from typing import List, Optional, cast
 
 import openai
-from openai.types.chat import ChatCompletionMessageParam
 from langchain_core.messages import BaseMessage
+from openai.types.chat import ChatCompletionMessageParam
 
+from ..config import get_config
 from ..utils.message_converters import langchain_to_openai_messages
 
 
@@ -15,7 +16,7 @@ class AirlineAssistant:
     def __init__(
         self,
         openai_client: openai.Client,
-        model: str = "gpt-3.5-turbo",
+        model: Optional[str] = None,
         system_prompt: Optional[str] = None
     ):
         """
@@ -23,11 +24,12 @@ class AirlineAssistant:
 
         Args:
             openai_client: OpenAI client instance
-            model: Model to use for the assistant
+            model: Model to use for the assistant (defaults to config)
             system_prompt: Optional custom system prompt
         """
+        config = get_config()
         self.client = openai_client
-        self.model = model
+        self.model = model or config.assistant_model
         self.system_prompt = system_prompt or (
             "You are a customer support agent for an airline. "
             "Be as helpful as possible, but don't invent any unknown information."

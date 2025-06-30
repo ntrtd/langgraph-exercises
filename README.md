@@ -61,7 +61,7 @@ The project follows clean architecture principles with clear separation of conce
 
 #### Prerequisites
 
-- Python 3.8+
+- Python 3.12+
 - OpenAI API key
 - LangSmith API key (free at [smith.langchain.com](https://smith.langchain.com))
 
@@ -77,7 +77,7 @@ The project follows clean architecture principles with clear separation of conce
    source .venv/bin/activate  # On Windows: .venv\Scripts\activate
    
    # Install dependencies
-   pip install -r requirements.txt
+   pip install -e .  # Installs package in editable mode
    ```
 
 2. **Configure environment**
@@ -131,7 +131,10 @@ langgraph-exercises/
 ├── docs/                           # Documentation
 │   └── EVALUATION_GUIDE.md         # Detailed evaluation guide
 ├── evaluate.py                     # Main evaluation script
-├── requirements.txt                # Python dependencies
+├── pyproject.toml                  # Package configuration and dependencies
+├── requirements.in                 # Base dependency specifications
+├── requirements-dev.in             # Development dependency specifications
+├── requirements.txt                # Locked production dependencies
 ├── .env.example                    # Example environment variables
 ├── langgraph.json                  # LangGraph deployment config
 └── README.md                       # This file
@@ -382,6 +385,9 @@ pip install -U "langgraph-cli[inmem]"
 
 # Install project as editable package (required)
 pip install -e .
+
+# For development with all tools
+pip install -e ".[dev]"
 
 # Run development server
 langgraph dev

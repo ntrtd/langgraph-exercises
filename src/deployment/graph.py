@@ -5,15 +5,14 @@ This module defines the graph that can be deployed to LangGraph Platform.
 """
 
 import os
-from typing import Optional
 
 import openai
 from langchain_openai import ChatOpenAI
 from langgraph.graph import StateGraph
 
 from src.agents import AirlineAssistant, RedTeamUser
+from src.config import get_config
 from src.orchestration import ChatSimulator
-from src.simulation_utils import create_chat_simulator
 
 
 def create_airline_assistant_graph(config=None):
@@ -26,39 +25,41 @@ def create_airline_assistant_graph(config=None):
     Returns:
         Compiled StateGraph ready for deployment
     """
-    model = None
-    system_prompt = None
-    # Get configuration from environment
-    model = model or os.getenv("ASSISTANT_MODEL", "gpt-3.5-turbo")
-    
+    # Get centralized configuration
+    app_config = get_config()
+
     # Initialize OpenAI client
     openai_client = openai.Client(
-        api_key=os.getenv("OPENAI_API_KEY")
+        api_key=app_config.openai_api_key or os.getenv("OPENAI_API_KEY")
     )
-    
-    # Create the assistant
+
+    # Create the assistant with config defaults
     assistant = AirlineAssistant(
         openai_client=openai_client,
-        model=model,
-        system_prompt=system_prompt
+        model=app_config.assistant_model,
+        system_prompt=None  # Use default from assistant
     )
-    
+
     # For deployment, we return just the assistant wrapped in a simple graph
     # The graph accepts messages and returns the assistant's response
-    from src.simulation_utils import SimulationState, _coerce_to_message, _fetch_messages
-    
+    from src.simulation_utils import (
+        SimulationState,
+        _coerce_to_message,
+        _fetch_messages,
+    )
+
     graph_builder = StateGraph(SimulationState)
-    
+
     # Add a single node for the assistant
     graph_builder.add_node(
         "assistant",
         _fetch_messages | assistant | _coerce_to_message
     )
-    
+
     # Direct flow from start to assistant to end
     graph_builder.add_edge("__start__", "assistant")
     graph_builder.add_edge("assistant", "__end__")
-    
+
     return graph_builder.compile()
 
 
@@ -72,37 +73,36 @@ def create_red_team_simulation_graph(config=None):
     Returns:
         Compiled StateGraph with both agents
     """
-    assistant_model = None
-    red_team_model = None
-    max_turns = None
-    # Get configuration
-    assistant_model = assistant_model or os.getenv("ASSISTANT_MODEL", "gpt-3.5-turbo")
-    red_team_model = red_team_model or os.getenv("RED_TEAM_MODEL", "gpt-3.5-turbo")
-    max_turns = max_turns or int(os.getenv("MAX_TURNS", "10"))
-    
+    # Get centralized configuration
+    app_config = get_config()
+
     # Initialize clients
     openai_client = openai.Client(
-        api_key=os.getenv("OPENAI_API_KEY")
+        api_key=app_config.openai_api_key or os.getenv("OPENAI_API_KEY")
     )
-    
-    # Create agents
+
+    # Create agents using config defaults
     assistant = AirlineAssistant(
         openai_client=openai_client,
-        model=assistant_model
+        model=app_config.assistant_model
     )
-    
+
     red_team_user = RedTeamUser(
-        llm=ChatOpenAI(model=red_team_model)
+        llm=ChatOpenAI(
+            model=app_config.red_team_model,
+            temperature=app_config.temperature,
+            max_tokens=app_config.max_tokens
+        )
     )
-    
-    # Create simulator
+
+    # Create simulator with config settings
     simulator = ChatSimulator(
         assistant=assistant,
         red_team_user=red_team_user,
-        max_turns=max_turns,
-        input_key="input"
+        max_turns=app_config.max_turns,
+        input_key=app_config.input_key
     )
-    
+
     # Return the compiled graph
     return simulator.simulator
 

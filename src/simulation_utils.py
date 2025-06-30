@@ -1,3 +1,11 @@
+"""Simulation utilities for creating and managing conversational agents.
+
+This module provides functions and classes for building simulated users and
+chat simulations using LangChain and LangGraph. It includes utilities for
+creating conversational agents, managing message flows, and orchestrating
+multi-turn conversations between simulated users and assistants.
+"""
+
 import functools
 from typing import Any, Callable, Dict, List, Optional, Union
 
@@ -43,17 +51,24 @@ def add_messages(left: Messages, right: Messages) -> List[AnyMessage]:
     return left_list + right_list
 
 
+class SimulationInputs(TypedDict, total=False):
+    """Input parameters for simulation."""
+    instructions: str
+    input: str
+    messages: List[AnyMessage]
+
+
 class SimulationState(TypedDict):
     """
     Represents the state of a simulation.
 
     Attributes:
         messages (List[AnyMessage]): A list of messages in the simulation.
-        inputs (Optional[dict[str, Any]]): Optional inputs for the simulation.
+        inputs (Optional[SimulationInputs]): Optional inputs for the simulation.
     """
 
     messages: Annotated[List[AnyMessage], add_messages]
-    inputs: Optional[Dict[str, Any]]
+    inputs: Optional[SimulationInputs]
 
 
 def create_chat_simulator(
@@ -61,7 +76,7 @@ def create_chat_simulator(
         Callable[[List[AnyMessage]], Union[str, AIMessage]],
         Runnable[List[AnyMessage], Union[str, AIMessage]]
     ],
-    simulated_user: Runnable[Dict[str, Any], AIMessage],
+    simulated_user: Runnable[SimulationInputs, AIMessage],
     *,
     input_key: str,
     max_turns: int = 6,
@@ -108,8 +123,8 @@ def create_chat_simulator(
 
 
 def _prepare_example(
-    inputs: Dict[str, Any], input_key: Optional[str] = None
-) -> Dict[str, Any]:
+    inputs: SimulationInputs, input_key: Optional[str] = None
+) -> SimulationState:
     if input_key is not None:
         if input_key not in inputs:
             raise ValueError(
@@ -140,7 +155,7 @@ def _invoke_simulated_user(
     return runnable.invoke(inputs)
 
 
-def _swap_roles(state: SimulationState) -> Dict[str, Any]:
+def _swap_roles(state: SimulationState) -> SimulationState:
     new_messages: List[AnyMessage] = []
     for m in state["messages"]:
         if isinstance(m, AIMessage):

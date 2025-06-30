@@ -3,16 +3,17 @@
 Unified evaluation script for airline chatbot red teaming.
 
 Supports both local and remote (deployed) execution modes.
-All configuration is done through environment variables.
+All configuration is managed through the centralized Config class.
 """
 
-import os
 import sys
+import logging
 from typing import Optional
 
 from dotenv import load_dotenv
 from langsmith import Client
 
+from src.config import get_config
 from src.evaluation import RedTeamEvaluator
 from src.evaluation.execution import ExecutionMode, LocalExecutor, RemoteExecutor
 
@@ -24,14 +25,17 @@ def print_banner():
     print("="*60)
 
 
-def print_config(mode: ExecutionMode, num_examples: Optional[int]):
+def print_config(config):
     """Print current configuration."""
+    mode = ExecutionMode.LOCAL if config.evaluation_mode == "local" else ExecutionMode.REMOTE
     print(f"\n📋 Configuration:")
     print(f"  • Mode: {mode.value}")
-    print(f"  • Examples: {'All' if num_examples is None else num_examples}")
+    print(f"  • Examples: {'All' if config.num_examples is None else config.num_examples}")
+    print(f"  • Environment: {config.environment}")
+    print(f"  • Default Model: {config.default_model}")
     
     if mode == ExecutionMode.REMOTE:
-        print(f"  • Deployment: {os.getenv('LANGGRAPH_DEPLOYMENT_URL', 'Not set')}")
+        print(f"  • Deployment: {config.langgraph_deployment_url or 'Not set'}")
 
 
 def run_example_simulation(executor, skip_example: bool):
@@ -61,40 +65,36 @@ def main():
     # Load environment variables
     load_dotenv()
     
+    # Get configuration
+    config = get_config()
+    
+    # Setup logging
+    logging.basicConfig(
+        level=getattr(logging, config.log_level),
+        format=config.log_format
+    )
+    
     print_banner()
+    print_config(config)
     
-    # Get configuration from environment
-    mode_str = os.getenv("EVALUATION_MODE", "local").lower()
-    mode = ExecutionMode.LOCAL if mode_str == "local" else ExecutionMode.REMOTE
-    
-    # Common configuration
-    dataset_name = os.getenv("DATASET_NAME", "Airline Red Teaming")
-    dataset_url = os.getenv("DATASET_URL", "https://smith.langchain.com/public/c232f4e0-0fc0-42b6-8f1f-b1fbd30cc339/d")
-    num_examples = os.getenv("NUM_EXAMPLES")
-    num_examples = int(num_examples) if num_examples else None
-    skip_example = os.getenv("SKIP_EXAMPLE", "false").lower() == "true"
-    
-    # Model configuration
-    assistant_model = os.getenv("ASSISTANT_MODEL", "gpt-4o")
-    red_team_model = os.getenv("RED_TEAM_MODEL", "gpt-4o")
-    evaluator_model = os.getenv("EVALUATOR_MODEL", "gpt-4o")
-    max_turns = int(os.getenv("MAX_TURNS", "10"))
-    
-    print_config(mode, num_examples)
-    
-    # Validate API keys
-    if not os.getenv("LANGSMITH_API_KEY"):
-        print("\n❌ Error: LANGSMITH_API_KEY not set in environment")
+    # Validate configuration
+    try:
+        config.validate()
+    except ValueError as e:
+        print(f"\n❌ {e}")
         sys.exit(1)
+    
+    # Determine execution mode
+    mode = ExecutionMode.LOCAL if config.evaluation_mode == "local" else ExecutionMode.REMOTE
     
     # Initialize LangSmith client
     print("\n🔧 Initializing LangSmith client...")
-    langsmith_client = Client()
+    langsmith_client = Client(api_key=config.langsmith_api_key)
     
     # Clone dataset if needed
-    print(f"\n📊 Preparing dataset: {dataset_name}")
+    print(f"\n📊 Preparing dataset: {config.dataset_name}")
     try:
-        langsmith_client.clone_public_dataset(dataset_url)
+        langsmith_client.clone_public_dataset(config.dataset_url)
         print("  ✓ Dataset ready")
     except Exception as e:
         print(f"  ℹ️  Dataset might already exist: {e}")
@@ -103,50 +103,40 @@ def main():
     print(f"\n🚀 Setting up {mode.value} executor...")
     
     if mode == ExecutionMode.LOCAL:
-        if not os.getenv("OPENAI_API_KEY"):
-            print("❌ Error: OPENAI_API_KEY not set for local execution")
-            sys.exit(1)
-            
         executor = LocalExecutor(
             langsmith_client=langsmith_client,
-            assistant_model=assistant_model,
-            red_team_model=red_team_model,
-            max_turns=max_turns
+            assistant_model=config.assistant_model,
+            red_team_model=config.red_team_model,
+            max_turns=config.max_turns,
+            openai_api_key=config.openai_api_key
         )
         print("  ✓ Local agents initialized")
         
     else:  # REMOTE
-        deployment_url = os.getenv("LANGGRAPH_DEPLOYMENT_URL")
-        deployment_api_key = os.getenv("LANGGRAPH_API_KEY")
-        
-        if not deployment_url or not deployment_api_key:
-            print("❌ Error: LANGGRAPH_DEPLOYMENT_URL and LANGGRAPH_API_KEY required for remote execution")
-            sys.exit(1)
-            
         executor = RemoteExecutor(
             langsmith_client=langsmith_client,
-            deployment_url=deployment_url,
-            deployment_api_key=deployment_api_key
+            deployment_url=config.langgraph_deployment_url,
+            deployment_api_key=config.langgraph_api_key
         )
-        print(f"  ✓ Connected to {deployment_url}")
+        print(f"  ✓ Connected to {config.langgraph_deployment_url}")
     
     # Run example simulation
-    run_example_simulation(executor, skip_example)
+    run_example_simulation(executor, config.skip_example)
     
     # Initialize evaluator
     print("\n🧪 Initializing evaluator...")
-    evaluator = RedTeamEvaluator(model=evaluator_model)
+    evaluator = RedTeamEvaluator(model=config.evaluator_model)
     
     # Run evaluation
     print("\n" + "="*60)
-    print(f"🏃 Running evaluation on {num_examples or 'all'} examples...")
+    print(f"🏃 Running evaluation on {config.num_examples or 'all'} examples...")
     print("="*60)
     
     try:
         result = executor.evaluate(
-            dataset_name=dataset_name,
+            dataset_name=config.dataset_name,
             evaluators=[evaluator.evaluate],
-            num_examples=num_examples
+            num_examples=config.num_examples
         )
         
         print("\n✅ Evaluation completed!")
