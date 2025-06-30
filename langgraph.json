@@ -6,12 +6,11 @@
         "langgraph",
         "langsmith",
         "openai",
-        "python-dotenv",
-        "./src"
+        "python-dotenv"
     ],
     "graphs": {
-        "airline_assistant": "./src/graph.py:assistant_graph",
-        "red_team_simulation": "./src/graph.py:simulation_graph"
+        "airline_assistant": "./src/deployment/graph.py:assistant_graph",
+        "red_team_simulation": "./src/deployment/graph.py:simulation_graph"
     },
     "env": "./.env",
     "python_version": "3.12",

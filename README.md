@@ -40,10 +40,18 @@ The project follows clean architecture principles with clear separation of conce
 - **Evaluation** (`src/evaluation/`)
   - `RedTeamEvaluator`: Judges whether attacks succeeded
   - Structured evaluation with reasoning
+  - **Execution** (`execution/` submodule):
+    - `LocalExecutor`: Run agents in-process
+    - `RemoteExecutor`: Use deployed LangGraph API
+    - Unified interface for both modes
   
 - **Orchestration** (`src/orchestration/`)
   - `ChatSimulator`: LangGraph-based conversation manager
   - Handles message flow and conversation termination
+  
+- **Deployment** (`src/deployment/`)
+  - `graph.py`: LangGraph deployment configurations
+  - Defines deployable graphs for platform
   
 - **Configuration** (`src/config.py`)
   - Centralized settings management
@@ -87,7 +95,7 @@ The project follows clean architecture principles with clear separation of conce
 3. **Run evaluation**
    ```bash
    # Quick test with 1 example
-   python -m src.airline_chatbot_evaluation --num-examples 1
+   python evaluate.py
    ```
 
 ### Project Structure
@@ -102,56 +110,78 @@ langgraph-exercises/
 │   ├── evaluation/                  # Evaluation logic
 │   │   ├── __init__.py
 │   │   ├── evaluator.py            # RedTeamEvaluator class
-│   │   └── models.py               # Pydantic models
+│   │   ├── models.py               # Pydantic models
+│   │   └── execution/              # Execution modules
+│   │       ├── __init__.py
+│   │       ├── base.py             # Base executor interface
+│   │       ├── local.py            # Local execution
+│   │       └── remote.py           # Remote API execution
 │   ├── orchestration/              # Simulation orchestration
 │   │   ├── __init__.py
 │   │   └── simulator.py            # ChatSimulator class
+│   ├── deployment/                 # LangGraph deployment
+│   │   ├── __init__.py
+│   │   └── graph.py                # Deployment graphs
 │   ├── utils/                      # Shared utilities
 │   │   ├── __init__.py
 │   │   └── message_converters.py   # Message conversion functions
 │   ├── config.py                   # Configuration management
-│   ├── simulation_utils.py         # Core LangGraph utilities
-│   └── airline_chatbot_evaluation.py # Main evaluation script
+│   └── simulation_utils.py         # Core LangGraph utilities
+├── prompts/                        # LangSmith Hub prompts
+├── docs/                           # Documentation
+│   └── EVALUATION_GUIDE.md         # Detailed evaluation guide
+├── evaluate.py                     # Main evaluation script
 ├── requirements.txt                # Python dependencies
 ├── .env.example                    # Example environment variables
+├── langgraph.json                  # LangGraph deployment config
 └── README.md                       # This file
 ```
 
 ### 📊 Running Evaluations
 
-#### Basic Usage
+We provide a unified evaluation system that supports both local and remote execution.
+
+#### Quick Start
 
 ```bash
-# Run with 1 example (quick test)
-python -m src.airline_chatbot_evaluation --num-examples 1
+# Run evaluation with default settings (local mode)
+python evaluate.py
 
-# Run with 5 examples
-python -m src.airline_chatbot_evaluation --num-examples 5
-
-# Run full dataset evaluation (may take hours)
-python -m src.airline_chatbot_evaluation
+# Run evaluation against deployed system
+EVALUATION_MODE=remote python evaluate.py
 ```
 
-#### Advanced Options
+#### Configuration
+
+All settings are managed through environment variables in `.env`:
+
+```env
+# Execution mode
+EVALUATION_MODE=local  # or "remote" for deployed systems
+
+# Evaluation settings
+NUM_EXAMPLES=5  # Number of examples (omit for all)
+SKIP_EXAMPLE=false  # Skip demo simulation
+
+# Remote deployment (when EVALUATION_MODE=remote)
+LANGGRAPH_DEPLOYMENT_URL=https://your-deployment.smith.langchain.com
+LANGGRAPH_API_KEY=your-deployment-key
+```
+
+#### Examples
 
 ```bash
-# Use faster model for development
-python -m src.airline_chatbot_evaluation --model gpt-3.5-turbo --num-examples 10
+# Quick test with 1 example
+NUM_EXAMPLES=1 python evaluate.py
 
-# Skip demo and run evaluation only
-python -m src.airline_chatbot_evaluation --skip-example --num-examples 3
+# Remote evaluation with 10 examples
+EVALUATION_MODE=remote NUM_EXAMPLES=10 python evaluate.py
 
-# Show all options
-python -m src.airline_chatbot_evaluation --help
+# Skip demo, run all examples
+SKIP_EXAMPLE=true NUM_EXAMPLES= python evaluate.py
 ```
 
-#### Command Line Arguments
-
-| Argument | Description | Default |
-|----------|-------------|---------|
-| `--num-examples N` | Number of examples to evaluate | All |
-| `--skip-example` | Skip the demo simulation | False |
-| `--model MODEL` | Model for all agents (gpt-3.5-turbo, gpt-4o) | gpt-4o |
+See the [Evaluation Guide](docs/EVALUATION_GUIDE.md) for detailed documentation.
 
 ### 🔄 Evaluation Process
 
@@ -336,36 +366,72 @@ See `prompts/README.md` for detailed instructions.
 
 ### 🌐 LangGraph Platform Deployment
 
-The airline assistant can be deployed to LangGraph Platform for production use:
+The airline assistant can be deployed both locally for development and to LangSmith Platform for production use:
 
-1. **Configuration**: The `langgraph.json` file configures two deployable graphs:
-   - `airline_assistant` - Customer support endpoint
-   - `red_team_simulation` - Full testing simulation
+#### Configuration
 
-2. **Deploy**:
-   ```bash
-   # Install CLI
-   pip install langgraph-cli
-   
-   # Test locally
-   langgraph dev
-   
-   # Deploy to cloud
-   langgraph deploy --name airline-chatbot
-   ```
+The `langgraph.json` file configures two deployable graphs:
+- `airline_assistant` - Customer support endpoint  
+- `red_team_simulation` - Full testing simulation
 
-3. **Use Deployed API**:
-   ```python
-   import requests
-   
-   response = requests.post(
-       "https://your-deployment.langgraph.app/airline_assistant/invoke",
-       json={"messages": [{"role": "user", "content": "Help with booking"}]},
-       headers={"Authorization": "Bearer YOUR_API_KEY"}
-   )
-   ```
+#### Local Development (LangGraph CLI)
 
-See `LANGGRAPH_DEPLOYMENT.md` for complete deployment instructions.
+```bash
+# Install CLI with in-memory runtime
+pip install -U "langgraph-cli[inmem]"
+
+# Install project as editable package (required)
+pip install -e .
+
+# Run development server
+langgraph dev
+```
+
+Access the local deployment at:
+- 🚀 API: http://127.0.0.1:2024
+- 🎨 Studio UI: https://smith.langchain.com/studio/?baseUrl=http://127.0.0.1:2024
+- 📚 API Docs: http://127.0.0.1:2024/docs
+
+#### LangSmith Platform Deployment
+
+```bash
+# Deploy to LangSmith Platform
+langgraph deploy --name airline-chatbot
+
+# List deployments
+langgraph deployments list
+```
+
+#### Important Configuration Notes
+
+- Python version in `langgraph.json` must be in "major.minor" format (e.g., "3.12", not "3.12.9")
+- Graph modules must use absolute imports (e.g., `from src.agents import ...`)
+- Graph exports must be factory functions that accept a `config` parameter
+
+#### API Usage Examples
+
+**Local Development:**
+```python
+import requests
+
+response = requests.post(
+    "http://127.0.0.1:2024/assistants/airline_assistant/invoke",
+    json={"messages": [{"role": "user", "content": "Help with booking"}]}
+)
+```
+
+**LangSmith Platform:**
+```python
+import requests
+
+response = requests.post(
+    "https://your-deployment.smith.langchain.com/assistants/airline_assistant/invoke",
+    json={"messages": [{"role": "user", "content": "Help with booking"}]},
+    headers={"x-api-key": "YOUR_LANGSMITH_API_KEY"}
+)
+```
+
+See `docs/LANGGRAPH_DEPLOYMENT.md` for complete deployment instructions, troubleshooting, and advanced configuration.
 
 #### Using the Evaluator with LangSmith
 
