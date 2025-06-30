@@ -15,6 +15,7 @@
     },
     "env": "./.env",
     "python_version": "3.12",
+    "image_distro": "wolfi",
     "dockerfile_lines": [],
     "metadata": {
         "description": "Airline customer support chatbot with red team testing capabilities",
