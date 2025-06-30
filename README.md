@@ -301,6 +301,93 @@ result = simulator.invoke({
 - [LangSmith Documentation](https://docs.smith.langchain.com/)
 - [Red Teaming Best Practices](https://www.anthropic.com/index/red-teaming-language-models-to-reduce-harms-methods-scaling-behaviors-and-lessons-learned)
 
+### 🚀 LangSmith Integration
+
+#### Publishing Prompts to LangSmith Hub
+
+The prompts used by our agents can be published to LangSmith Hub for reuse:
+
+1. **Available Prompts** (`prompts/` directory):
+   - `airline_assistant_prompt.json` - Customer support assistant
+   - `red_team_user_prompt.json` - Red team adversarial user
+
+2. **Publishing Process**:
+   ```python
+   from langsmith import Client
+   import json
+   
+   client = Client()
+   with open("prompts/airline_assistant_prompt.json") as f:
+       prompt = json.load(f)
+   
+   # Publish via UI or API
+   ```
+
+3. **Using Published Prompts**:
+   ```python
+   from langchain import hub
+   
+   # Pull prompts from hub
+   assistant_prompt = hub.pull("your-username/airline-customer-support-assistant")
+   red_team_prompt = hub.pull("your-username/airline-red-team-user")
+   ```
+
+See `prompts/README.md` for detailed instructions.
+
+### 🌐 LangGraph Platform Deployment
+
+The airline assistant can be deployed to LangGraph Platform for production use:
+
+1. **Configuration**: The `langgraph.json` file configures two deployable graphs:
+   - `airline_assistant` - Customer support endpoint
+   - `red_team_simulation` - Full testing simulation
+
+2. **Deploy**:
+   ```bash
+   # Install CLI
+   pip install langgraph-cli
+   
+   # Test locally
+   langgraph dev
+   
+   # Deploy to cloud
+   langgraph deploy --name airline-chatbot
+   ```
+
+3. **Use Deployed API**:
+   ```python
+   import requests
+   
+   response = requests.post(
+       "https://your-deployment.langgraph.app/airline_assistant/invoke",
+       json={"messages": [{"role": "user", "content": "Help with booking"}]},
+       headers={"Authorization": "Bearer YOUR_API_KEY"}
+   )
+   ```
+
+See `LANGGRAPH_DEPLOYMENT.md` for complete deployment instructions.
+
+#### Using the Evaluator with LangSmith
+
+The `RedTeamEvaluator` is already compatible with LangSmith's evaluation framework:
+
+```python
+from langsmith import Client
+from src.evaluation import RedTeamEvaluator
+
+client = Client()
+evaluator = RedTeamEvaluator(model="gpt-4o")
+
+# Run evaluation
+result = client.evaluate(
+    target=your_target,
+    data=your_dataset,
+    evaluators=[evaluator.evaluate],  # Works out of the box!
+)
+```
+
+**Note**: LangSmith runs evaluators locally (not on their platform) since our evaluator requires GPT-4 API access.
+
 ### 📄 License
 
 MIT - See LICENSE file for details

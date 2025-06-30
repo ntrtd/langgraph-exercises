@@ -1,0 +1,24 @@
+{
+    "dependencies": [
+        "langchain",
+        "langchain-openai",
+        "langchain-community",
+        "langgraph",
+        "langsmith",
+        "openai",
+        "python-dotenv",
+        "./src"
+    ],
+    "graphs": {
+        "airline_assistant": "./src/graph.py:assistant_graph",
+        "red_team_simulation": "./src/graph.py:simulation_graph"
+    },
+    "env": "./.env",
+    "python_version": "3.12",
+    "dockerfile_lines": [],
+    "metadata": {
+        "description": "Airline customer support chatbot with red team testing capabilities",
+        "version": "1.0.0",
+        "author": "LangGraph Exercises"
+    }
+}

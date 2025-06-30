@@ -1,8 +1,9 @@
 """Airline customer support assistant implementation."""
 
-from typing import List, Optional
+from typing import List, Optional, cast
 
 import openai
+from openai.types.chat import ChatCompletionMessageParam
 from langchain_core.messages import BaseMessage
 
 from ..utils.message_converters import langchain_to_openai_messages
@@ -43,12 +44,12 @@ class AirlineAssistant:
             str: The assistant's response
         """
         oai_messages = langchain_to_openai_messages(messages)
-        system_message = {
+        system_message: ChatCompletionMessageParam = {
             "role": "system",
             "content": self.system_prompt,
         }
 
-        all_messages = [system_message] + oai_messages
+        all_messages = cast(List[ChatCompletionMessageParam], [system_message] + oai_messages)
 
         completion = self.client.chat.completions.create(
             messages=all_messages,
@@ -57,4 +58,3 @@ class AirlineAssistant:
 
         content = completion.choices[0].message.content
         return content if content else ""
-
